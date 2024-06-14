@@ -1,0 +1,11 @@
+# Utiliser l'image officielle de PostgreSQL
+FROM postgres:alpine3.20
+
+# Ajouter le script d'initialisation
+COPY init.sql /docker-entrypoint-initdb.d/
+
+# Définir les variables d'environnement pour PostgreSQL
+ENV POSTGRES_DB=mydatabase
+ENV POSTGRES_USER=myuser
+ENV POSTGRES_PASSWORD=mypassword
+

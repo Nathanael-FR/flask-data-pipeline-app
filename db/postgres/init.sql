@@ -1,0 +1,48 @@
+-- init.sql
+
+CREATE TABLE IF NOT EXISTS eco2mix_data (
+
+        id SERIAL PRIMARY KEY,
+        date_heures TIMESTAMP,
+        date DATE,
+        heures TIME,
+        consommation INT,
+        prevision_j_1 INT,
+        prevision_j INT,
+        fioul INT,
+        charbon INT,
+        gaz INT,
+        nucleaire INT,
+        eolien INT,
+        solaire INT,
+        hydraulique INT,
+        pompage INT,
+        bioenergies INT,
+        ech_physiques INT,
+        taux_de_co2 INT,
+        ech_comm_angleterre INT,
+        ech_comm_espagne INT,
+        ech_comm_italie INT,
+        ech_comm_suisse INT,
+        ech_comm_allemagne_belgique INT,        
+        fioul_tac INT,
+        fioul_cogen INT,
+        fioul_autres INT,
+        gaz_tac INT,
+        gaz_cogen INT,
+        gaz_ccg INT,
+        gaz_autres INT,
+        hydraulique_fildeleau_eclusee INT,
+        hydraulique_lacs INT,
+        hydraulique_step_turbinage INT,
+        bioenergies_dechets INT,
+        bioenergies_biomasse INT,
+        bioenergies_biogaz INT,
+        stockage_batterie INT,
+        destockage_batterie INT,
+        eolien_terrestre INT,
+        eolien_offshore INT,
+        UNIQUE (date_heures)
+
+);
+

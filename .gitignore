@@ -1,0 +1,4 @@
+__pycache__/
+*.__pycache__/
+db/airflow_data
+db/postgres/postgres_data

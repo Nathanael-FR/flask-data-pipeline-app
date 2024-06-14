@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  postgres:
+    build:
+      context: ./db/postgres
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/postgres/postgres_data:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - mynetwork
+
+  web-app:
+    build:
+      context: ./web-app
+    depends_on:
+      - postgres
+    environment:
+      - DB_NAME=mydatabase
+      - DB_USER=myuser
+      - DB_PASSWORD=mypassword
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    networks:
+      - mynetwork
+
+  proxy:
+    build:
+      context: ./proxy
+    ports:
+      - "81:80"
+    depends_on:
+      - web-app
+    networks:
+      - mynetwork
+
+  airflow-webserver:
+    image: apache/airflow:2.6.0-python3.9
+    command: webserver
+    environment:
+      - EXECUTOR=LocalExecutor  # Change this to LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secured_key
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./airflow-docker/requirements.txt:/opt/airflow/requirements.txt
+      - ./airflow-docker/utils/entrypoint.sh:/opt/airflow/script/entrypoint.sh
+      - ./airflow-docker/default_webserver_config.py:/opt/airflow/config/default_webserver_config.py
+      - ./.env:/opt/airflow/.env
+    entrypoint: ['/opt/airflow/script/entrypoint.sh']
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /opt/airflow/airflow-webserver.pid ]"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "8081:8080"
+    depends_on:
+      - airflow-postgres
+    networks:
+      - mynetwork
+
+  airflow-scheduler:
+    image: apache/airflow:2.6.0-python3.9
+    command: bash -c "pip install -r ./requirements.txt && airflow db upgrade && airflow scheduler"
+    environment:
+      - EXECUTOR=LocalExecutor  # Change this to LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      - AIRFLOW__CORE__FERNET_KEY=myfernetkey
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./airflow-docker/requirements.txt:/opt/airflow/requirements.txt
+      - ./airflow-docker/utils/entrypoint.sh:/opt/airflow/script/entrypoint.sh
+      - ./.env:/opt/airflow/.env
+    depends_on:
+      airflow-webserver:
+        condition: service_healthy
+    networks:
+      - mynetwork
+
+  airflow-postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - ./db/airflow_data:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+
+volumes:
+  postgres_data:
+  airflow_data:
+
+networks:
+  mynetwork:
+    driver: bridge
