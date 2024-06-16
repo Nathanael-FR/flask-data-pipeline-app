@@ -21,18 +21,18 @@ def get_last_date():
 
     return day, month, year
 
-def fetch_data(day : int | str, month : int | str, year: int) -> None:
-
-    try :
+def fetch_data(day: int | str, month: int | str, year: int) -> None:
+    try:
         res = requests.get(DATA_URL.format(day, month, year))
         res = res.content
         z = ZipFile(io.BytesIO(res))
         z.extractall("./data/")
     except Exception as e:
         raise Exception(f"An error occurred while fetching the data: {e}")
-    else :
-        assert os.path.exists(f"./data/eCO2mix_RTE_{year}-{month}-{day}.xls"), "The file has not been downloaded"
-        
+    else:
+        file_path = f"./data/eCO2mix_RTE_{year}-{month}-{day}.xls"
+        if not os.path.exists(file_path):
+            raise Exception("The file has not been downloaded")
 
 def repair_data(day, month, year) -> pd.DataFrame:
 
@@ -75,10 +75,8 @@ def del_excel_files(day, month, year) -> None:
 def clean_data(df):
     
     try : 
-        df = df.drop(columns=["Périmètre","Nature","Consommation corrigée"], index=1)
-        print(df.head())
+        df = df.drop(columns=["Périmètre","Nature","Consommation corrigée"])
         df.drop(df.tail(1).index,inplace = True)
-        print(df.head())
         df.columns = df.columns.str.normalize('NFKD')\
                                     .str.encode('ascii', errors='ignore')\
                                     .str.decode('utf-8')\
@@ -119,3 +117,11 @@ def clean_data(df):
     
     else :
         return df
+
+if __name__ == "__main__":
+
+    day, month, year = get_last_date()
+    fetch_data(day, month, year)
+    df = repair_data(day, month, year)
+    df = clean_data(df)
+    del_excel_files(day, month, year)

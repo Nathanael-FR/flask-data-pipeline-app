@@ -12,7 +12,6 @@ class TestGetLastDate(unittest.TestCase):
         # Mock la date actuelle pour être le 16 juin 2024
         mock_datetime.now.return_value = datetime(2024, 6, 16)
         
-        # Appeler la fonction
         day, month, year = get_last_date()
         
         # Vérifier les résultats
@@ -22,13 +21,11 @@ class TestGetLastDate(unittest.TestCase):
     
     @patch('dags.src.main.update_data.datetime')
     def test_get_last_date_single_digit_day_month(self, mock_datetime):
-        # Mock la date actuelle pour être le 1er mars 2024
+
         mock_datetime.now.return_value = datetime(2024, 3, 1)
         
-        # Appeler la fonction
         day, month, year = get_last_date()
         
-        # Vérifier les résultats
         self.assertEqual(day, 29)
         self.assertEqual(month, '02')
         self.assertEqual(year, 2024)
