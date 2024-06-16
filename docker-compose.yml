@@ -53,7 +53,7 @@ services:
     image: apache/airflow:2.6.0-python3.9
     command: webserver
     environment:
-      - EXECUTOR=LocalExecutor  # Change this to LocalExecutor
+      - EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
       - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secured_key
     volumes:
@@ -80,7 +80,7 @@ services:
     image: apache/airflow:2.6.0-python3.9
     command: bash -c "pip install -r ./requirements.txt && airflow db upgrade && airflow scheduler"
     environment:
-      - EXECUTOR=LocalExecutor  # Change this to LocalExecutor
+      - EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
       - AIRFLOW__CORE__FERNET_KEY=myfernetkey
     volumes:
