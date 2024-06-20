@@ -24,4 +24,4 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest dags/src/tests
+        pytest airflow/dags/src/tests
