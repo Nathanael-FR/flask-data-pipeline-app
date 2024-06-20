@@ -65,11 +65,6 @@ class TestFetchData(unittest.TestCase):
 class TestCleanData(unittest.TestCase):
 
     @patch('dags.src.main.update_data.datetime')
-    def test_repair_data(self, mock_datetime):
-
-        ...
-
-    @patch('dags.src.main.update_data.datetime')
     def test_del_excel_files(self, mock_datetime):
 
         mock_datetime.now.return_value = datetime(2024, 6, 9)

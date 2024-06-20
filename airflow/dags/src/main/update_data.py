@@ -21,7 +21,7 @@ def get_last_date():
 
     return day, month, year
 
-def fetch_data(day: int | str, month: int | str, year: int) -> None:
+def fetch_data(day: Union[str,int], month: Union[str,int], year: int) -> None:
     try:
         res = requests.get(DATA_URL.format(day, month, year))
         res = res.content
