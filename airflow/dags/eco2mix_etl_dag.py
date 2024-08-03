@@ -17,6 +17,7 @@ def extract_data(**kwargs):
         fetch_data(day, month, year)
     except Exception as e:
         logger.error(f"An error occurred while extracting the data: {e}")
+        raise
     else :
         logger.info("Extracted data")
         send_kafka_message('data_extracted', {'day': day, 'month': month, 'year': year})
@@ -33,10 +34,12 @@ def transform_data(**kwargs):
         del_excel_files(day, month, year)
     except Exception as e:
         logger.error(f"An error occurred while transforming the data: {e}")
+        raise
     else :
         logger.info("Transformed data")
         # kwargs['ti'].xcom_push(key='cleaned_df', value=df)
-        send_kafka_message('data_transformed', {'dataframe': df.to_json()})
+        df_json = df.to_json()
+        send_kafka_message('data_transformed', {'dataframe': df_json})
 
 @task
 def load_data(**kwargs):
@@ -48,6 +51,7 @@ def load_data(**kwargs):
         insert_data(df)
     except Exception as e:
         logger.error(e)
+        raise
     else:
         logger.info("Data loaded successfully")
     finally:

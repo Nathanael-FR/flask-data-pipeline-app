@@ -1,7 +1,10 @@
 version: '3.8'
 
 services:
+
   postgres:
+    hostname: postgres
+    container_name: postgres
     build:
       context: ./db/postgres
     environment:
@@ -16,6 +19,8 @@ services:
       - mynetwork
 
   adminer:
+    hostname: adminer
+    container_name: adminer
     image: adminer
     restart: always
     ports:
@@ -26,6 +31,8 @@ services:
       - mynetwork
 
   web-app:
+    hostname: web-app
+    container_name: web-app
     build:
       context: ./web-app
     depends_on:
@@ -40,6 +47,8 @@ services:
       - mynetwork
 
   proxy:
+    hostname: proxy
+    container_name: proxy
     build:
       context: ./proxy
     ports:
@@ -50,6 +59,8 @@ services:
       - mynetwork
 
   airflow-webserver:
+    hostname: airflow-webserver
+    container_name: airflow-webserver
     image: apache/airflow:2.6.0-python3.9
     command: webserver
     environment:
@@ -78,9 +89,10 @@ services:
       - mynetwork
 
   airflow-scheduler:
+    hostname: airflow-scheduler
+    container_name: airflow-scheduler
     image: apache/airflow:2.6.0-python3.9
     entrypoint: bash -c "pip install -r ./requirements.txt && airflow db upgrade && airflow scheduler"
-    # command: bash -c "pip install -r ./requirements.txt && airflow db upgrade && airflow scheduler"
     environment:
       - EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
@@ -97,6 +109,8 @@ services:
       - mynetwork
 
   airflow-postgres:
+    hostname: airflow-postgres
+    container_name: airflow-postgres
     image: postgres:13
     environment:
       POSTGRES_USER: airflow
@@ -107,8 +121,12 @@ services:
     networks:
       - mynetwork
 
+################### KAFKA STACK ###################
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
+    hostname: zookeeper
+    container_name: zookeeper
     ports:
       - "2181:2181"
     environment:
@@ -124,17 +142,19 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
+    hostname: kafka
+    container_name: kafka
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092   # PLAINTEXT for container-to-container communication, PLAINTEXT_HOST for external communication
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -146,48 +166,81 @@ services:
       timeout: 5s
       retries: 5
 
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.6.1
+    hostname: kafka-connect
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092  # List of Kafka brokers 
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: 'http://kafka-schema-registry:8081'
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: 'http://kafka-schema-registry:8081'
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_PLUGIN_PATH: '/usr/share/java,/etc/kafka-connect/jars,/usr/share/confluent-hub-components'
+      CONNECT_PRODUCER_MAX_BLOCK_MS: 60000
+
+    volumes:
+      - ./kafka-connect/connectors:/etc/kafka-connect/jars/
+    depends_on:
+      - kafka
+      - schema-registry
+
   schema-registry:
     image: confluentinc/cp-schema-registry:7.6.1
-    depends_on:
-      kafka:
-        condition: service_healthy
+    hostname: kafka-schema-registry
+    container_name: kafka-schema-registry
     ports:
       - "8081:8081"
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: kafka-schema-registry
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      kafka:
+        condition: service_healthy
     networks:
       - mynetwork
-    healthcheck:
-      test: ["CMD", "curl", '-f', "http://localhost:8081"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  # control-center:
-  #   image: confluentinc/cp-enterprise-control-center:7.6.1
-  #   depends_on:
-  #     kafka:
-  #       condition: service_healthy
-  #     schema-registry:
-  #       condition: service_healthy
-  #   ports:
-  #     - "9021:9021"
-  #   environment:
-  #     CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka:9092
-  #     CONTROL_CENTER_ZOOKEEPER_CONNECT: zookeeper:2181
-  #     CONTROL_CENTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-  #     CONTROL_CENTER_REPLICATION_FACTOR: 1
-  #     CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
-  #     CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
-  #     CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: 1
-  #     CONTROL_CENTER_COMMAND_TOPIC_REPLICATION: 1
-  #     CONFLUENT_METRICS_ENABLE: 'false'
-  #     PORT: 9021
-  #   networks:
-  #     - mynetwork
 
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.6.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka:9092
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_COMMAND_TOPIC_REPLICATION: 1
+      CONFLUENT_METRICS_ENABLE: 'false'
+      PORT: 9021
+    networks:
+      - mynetwork
+
+  
       
 volumes:
   postgres_data:

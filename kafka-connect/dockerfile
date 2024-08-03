@@ -1,0 +1,6 @@
+FROM confluentinc/cp-kafka-connect:7.6.1
+
+COPY connectors /etc/kafka-connect/jars
+COPY connectors/init-connectors.sh /etc/kafka-connect/init-connectors.sh
+
+CMD ["bash", "-c", "/etc/kafka-connect/init-connectors.sh & /etc/confluent/docker/run"]
